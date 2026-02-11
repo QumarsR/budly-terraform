@@ -1,5 +1,25 @@
 ### ECS Service Submodule
 
+# ECS Service Discovery
+resource "aws_service_discovery_service" "this" {
+  name = var.service_discovery_name
+
+  dns_config {
+    namespace_id = var.service_discovery_namespace_id
+
+    dns_records {
+      ttl  = 10
+      type = "A"
+    }
+
+    routing_policy = "MULTIVALUE"
+  }
+
+  health_check_custom_config {
+    failure_threshold = 1
+  }
+}
+
 # ECS Service
 resource "aws_ecs_service" "main" {
   name                               = var.service_name
@@ -23,6 +43,10 @@ resource "aws_ecs_service" "main" {
       container_name   = var.container_name
       container_port   = var.container_port
     }
+  }
+
+  service_registries {
+    registry_arn = aws_service_discovery_service.this.arn
   }
 
   tags = var.tags

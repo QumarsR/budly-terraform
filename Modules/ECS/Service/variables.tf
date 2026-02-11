@@ -55,3 +55,13 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "service_discovery_namespace_id" {
+  description = "The ID of the private DNS namespace"
+  type        = string
+}
+
+variable "service_discovery_name" {
+  description = "The name of the service record (e.g., auth, log)"
+  type        = string
+}
