@@ -10,10 +10,5 @@ output "service_name" {
 
 output "task_definition_arn" {
   description = "The ARN of the ECS task definition"
-  value       = aws_ecs_task_definition.main.arn
-}
-
-output "task_execution_role_arn" {
-  description = "The ARN of the ECS task execution role"
-  value       = aws_iam_role.ecs_task_execution_role.arn
+  value       = var.task_definition_arn
 }
