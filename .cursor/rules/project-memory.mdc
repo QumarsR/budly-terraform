@@ -1,0 +1,26 @@
+---
+description: Maintains the project's long-term memory in CURSOR.md
+alwaysApply: true
+---
+
+# Project Memory Management
+
+You have a long-term memory file located at `CURSOR.md` in the .cursor root.
+
+## Your Responsibilities
+
+1.  **Read on Start**: When starting a new task or session that requires architectural context, read `CURSOR.md` to ground yourself in the project's goals and structure.
+2.  **Update on Learn**: When you perform deep dives, analyze code, or learn new details about the infrastructure, services, or external dependencies:
+    *   Check if this information is missing or outdated in `CURSOR.md`.
+    *   Update `CURSOR.md` with the new findings.
+3.  **Keep it Concise**:
+    *   Do not let the file grow beyond 2-3 pages.
+    *   Summarize details. Avoid pasting large code blocks.
+    *   Focus on *concepts*, *relationships*, and *decisions*, not line-by-line implementation details.
+
+## Structure of CURSOR.md
+
+- **Overarching Goal**: The "Why" of the project.
+- **Architecture & Services**: The "What" and "How" of internal components.
+- **Infrastructure**: External pieces (DBs, Frontends) and how they connect.
+- **Key Workflows**: Critical paths through the system.
