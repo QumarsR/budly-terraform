@@ -75,7 +75,7 @@ resource "aws_rds_cluster" "main" {
   skip_final_snapshot     = true
   storage_encrypted       = true
   
-  serverless_v2_scaling_configuration {
+  serverlessv2_scaling_configuration {
     min_capacity = var.min_capacity
     max_capacity = var.max_capacity
   }
