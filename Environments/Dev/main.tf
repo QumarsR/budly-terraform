@@ -7,9 +7,10 @@ provider "aws" {
 module "networking" {
   source = "../../Modules/Networking/VPC"
 
-  vpc_cidr           = var.vpc_cidr
-  public_subnet_cidr = var.public_subnet_cidr
-  availability_zone  = "${var.aws_region}a"
+  vpc_cidr             = var.vpc_cidr
+  public_subnet_cidrs  = var.public_subnet_cidrs
+  private_subnet_cidrs = var.private_subnet_cidrs
+  availability_zones   = var.availability_zones
 }
 
 # create private namesapce for container discovery
@@ -83,6 +84,25 @@ resource "aws_iam_role" "ecs_task_role" {
   })
 }
 
+# Redis (ElastiCache)
+module "redis" {
+  source = "../../Modules/Redis"
+
+  subnet_group_name       = module.networking.elasticache_subnet_group_name
+  vpc_id                  = module.networking.vpc_id
+  allowed_security_groups = [aws_security_group.ecs_tasks_sg.id]
+}
+
+# Qdrant (EC2)
+module "qdrant_ec2" {
+  source = "../../Modules/QdrantEC2"
+
+  vpc_id                  = module.networking.vpc_id
+  subnet_id               = module.networking.public_subnet_ids[0]
+  allowed_security_groups = [aws_security_group.ecs_tasks_sg.id]
+  # ssh_cidr_blocks       = ["0.0.0.0/0"] # Default
+}
+
 # Task Definitions
 
 module "api-auth-td" {
@@ -98,7 +118,9 @@ module "api-auth-td" {
   environment_variables = [
     { name = "SERVER_IP", value = var.db_host },
     { name = "LOG_API", value = "http://log.budly.local:8000" },
-    { name = "MODE_SERVER", value = "DEV" }
+    { name = "MODE_SERVER", value = "DEV" },
+    { name = "REDIS_HOST", value = module.redis.redis_endpoint },
+    { name = "REDIS_PORT", value = tostring(module.redis.redis_port) }
   ]
 }
 
@@ -151,79 +173,83 @@ module "api-prompt-td" {
     { name = "URL_API_AUTH", value = "http://auth.budly.local:8000" },
     { name = "URL_API_LOG", value = "http://log.budly.local:8000" },
     { name = "SERVER_API_IP", value = var.db_host },
-    { name = "MODE_SERVER", value = "DEV" }
+    { name = "MODE_SERVER", value = "DEV" },
+    { name = "QDRANT_HOST", value = module.qdrant_ec2.private_ip },
+    { name = "QDRANT_PORT", value = "6333" },
+    { name = "REDIS_HOST", value = module.redis.redis_endpoint },
+    { name = "REDIS_PORT", value = tostring(module.redis.redis_port) }
   ]
 }
 
 # # # create ECS Services
-# module "api-prompt-service" {
-#   source = "../../Modules/ECS/Service"
+module "api-prompt-service" {
+  source = "../../Modules/ECS/Service"
 
-#   cluster_id          = module.ECSCluster.cluster_id
-#   service_name        = "api-prompt-service"
-#   container_name      = "api-prompt-container"
-#   container_port      = 8000
-#   desired_count       = 1
-#   subnets             = [module.networking.public_subnet_id]
-#   security_groups     = [aws_security_group.ecs_tasks_sg.id]
-#   assign_public_ip    = true
-#   task_definition_arn = module.api-prompt-td.arn
-#   target_group_arn    = null
+  cluster_id          = module.ECSCluster.cluster_id
+  service_name        = "api-prompt-service"
+  container_name      = "api-prompt-container"
+  container_port      = 8000
+  desired_count       = 1
+  subnets             = module.networking.public_subnet_ids
+  security_groups     = [aws_security_group.ecs_tasks_sg.id]
+  assign_public_ip    = true
+  task_definition_arn = module.api-prompt-td.arn
+  target_group_arn    = null
 
-#   service_discovery_namespace_id = module.dns.namespace_id
-#   service_discovery_name         = "prompt"
-# }
+  service_discovery_namespace_id = module.dns.namespace_id
+  service_discovery_name         = "prompt"
+}
 
-# module "api-log-service" {
-#   source = "../../Modules/ECS/Service"
+module "api-log-service" {
+  source = "../../Modules/ECS/Service"
 
-#   cluster_id          = module.ECSCluster.cluster_id
-#   service_name        = "api-log-service"
-#   container_name      = "api-log-container"
-#   container_port      = 8000
-#   desired_count       = 1
-#   subnets             = [module.networking.public_subnet_id]
-#   security_groups     = [aws_security_group.ecs_tasks_sg.id]
-#   assign_public_ip    = true
-#   task_definition_arn = module.api-log-td.arn
-#   target_group_arn    = null
+  cluster_id          = module.ECSCluster.cluster_id
+  service_name        = "api-log-service"
+  container_name      = "api-log-container"
+  container_port      = 8000
+  desired_count       = 1
+  subnets             = module.networking.public_subnet_ids
+  security_groups     = [aws_security_group.ecs_tasks_sg.id]
+  assign_public_ip    = true
+  task_definition_arn = module.api-log-td.arn
+  target_group_arn    = null
 
-#   service_discovery_namespace_id = module.dns.namespace_id
-#   service_discovery_name         = "log"
-# }
+  service_discovery_namespace_id = module.dns.namespace_id
+  service_discovery_name         = "log"
+}
 
-# module "api-master-service" {
-#   source = "../../Modules/ECS/Service"
+module "api-master-service" {
+  source = "../../Modules/ECS/Service"
 
-#   cluster_id          = module.ECSCluster.cluster_id
-#   service_name        = "api-master-service"
-#   container_name      = "api-master-container"
-#   container_port      = 8000
-#   desired_count       = 1
-#   subnets             = [module.networking.public_subnet_id]
-#   security_groups     = [aws_security_group.ecs_tasks_sg.id]
-#   assign_public_ip    = true
-#   task_definition_arn = module.api-master-td.arn
-#   target_group_arn    = null
+  cluster_id          = module.ECSCluster.cluster_id
+  service_name        = "api-master-service"
+  container_name      = "api-master-container"
+  container_port      = 8000
+  desired_count       = 1
+  subnets             = module.networking.public_subnet_ids
+  security_groups     = [aws_security_group.ecs_tasks_sg.id]
+  assign_public_ip    = true
+  task_definition_arn = module.api-master-td.arn
+  target_group_arn    = null
 
-#   service_discovery_namespace_id = module.dns.namespace_id
-#   service_discovery_name         = "master"
-# }
+  service_discovery_namespace_id = module.dns.namespace_id
+  service_discovery_name         = "master"
+}
 
-# module "api-auth-service" {
-#   source = "../../Modules/ECS/Service"
+module "api-auth-service" {
+  source = "../../Modules/ECS/Service"
 
-#   cluster_id          = module.ECSCluster.cluster_id
-#   service_name        = "api-auth-service"
-#   container_name      = "api-auth-container"
-#   container_port      = 8000
-#   desired_count       = 1
-#   subnets             = [module.networking.public_subnet_id]
-#   security_groups     = [aws_security_group.ecs_tasks_sg.id]
-#   assign_public_ip    = true
-#   task_definition_arn = module.api-auth-td.arn
-#   target_group_arn    = null
+  cluster_id          = module.ECSCluster.cluster_id
+  service_name        = "api-auth-service"
+  container_name      = "api-auth-container"
+  container_port      = 8000
+  desired_count       = 1
+  subnets             = module.networking.public_subnet_ids
+  security_groups     = [aws_security_group.ecs_tasks_sg.id]
+  assign_public_ip    = true
+  task_definition_arn = module.api-auth-td.arn
+  target_group_arn    = null
 
-#   service_discovery_namespace_id = module.dns.namespace_id
-#   service_discovery_name         = "auth"
-# }
+  service_discovery_namespace_id = module.dns.namespace_id
+  service_discovery_name         = "auth"
+}
