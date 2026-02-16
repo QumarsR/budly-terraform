@@ -3,12 +3,27 @@ output "vpc_id" {
   value       = aws_vpc.main.id
 }
 
-output "public_subnet_id" {
-  description = "The ID of the public subnet"
-  value       = aws_subnet.public.id
+output "public_subnet_ids" {
+  description = "The IDs of the public subnets"
+  value       = aws_subnet.public[*].id
+}
+
+output "private_subnet_ids" {
+  description = "The IDs of the private subnets"
+  value       = aws_subnet.private[*].id
 }
 
 output "internet_gateway_id" {
   description = "The ID of the Internet Gateway"
   value       = aws_internet_gateway.gw.id
+}
+
+output "db_subnet_group_name" {
+  description = "The name of the DB subnet group"
+  value       = aws_db_subnet_group.default.name
+}
+
+output "elasticache_subnet_group_name" {
+  description = "The name of the ElastiCache subnet group"
+  value       = aws_elasticache_subnet_group.default.name
 }

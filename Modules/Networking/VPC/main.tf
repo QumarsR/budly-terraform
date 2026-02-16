@@ -19,21 +19,34 @@ resource "aws_internet_gateway" "gw" {
   }
 }
 
-# Public Subnet
+# Public Subnets
 resource "aws_subnet" "public" {
+  count                   = length(var.public_subnet_cidrs)
   vpc_id                  = aws_vpc.main.id
-  cidr_block              = var.public_subnet_cidr
-  availability_zone       = var.availability_zone
+  cidr_block              = var.public_subnet_cidrs[count.index]
+  availability_zone       = var.availability_zones[count.index]
   map_public_ip_on_launch = true
 
   tags = {
-    Name = "public-subnet"
+    Name = "public-subnet-${count.index + 1}"
   }
 }
 
-# Route Table for Public Subnet
-resource "aws_default_route_table" "public" {
-  default_route_table_id = aws_vpc.main.default_route_table_id
+# Private Subnets
+resource "aws_subnet" "private" {
+  count             = length(var.private_subnet_cidrs)
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = var.private_subnet_cidrs[count.index]
+  availability_zone = var.availability_zones[count.index]
+
+  tags = {
+    Name = "private-subnet-${count.index + 1}"
+  }
+}
+
+# Route Table for Public Subnets
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.main.id
 
   route {
     cidr_block = "0.0.0.0/0"
@@ -41,12 +54,29 @@ resource "aws_default_route_table" "public" {
   }
 
   tags = {
-    Name = "public-route-table" # This renames the default table
+    Name = "public-route-table"
   }
 }
 
-# Route Table Association
+# Route Table Association for Public Subnets
 resource "aws_route_table_association" "public" {
-  subnet_id      = aws_subnet.public.id
-  route_table_id = aws_default_route_table.public.id
+  count          = length(var.public_subnet_cidrs)
+  subnet_id      = aws_subnet.public[count.index].id
+  route_table_id = aws_route_table.public.id
+}
+
+# DB Subnet Group (for ElastiCache/RDS)
+resource "aws_db_subnet_group" "default" {
+  name       = "main-db-subnet-group"
+  subnet_ids = aws_subnet.private[*].id
+
+  tags = {
+    Name = "Main DB subnet group"
+  }
+}
+
+# ElastiCache Subnet Group
+resource "aws_elasticache_subnet_group" "default" {
+  name       = "main-elasticache-subnet-group"
+  subnet_ids = aws_subnet.private[*].id
 }

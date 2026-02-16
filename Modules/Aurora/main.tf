@@ -63,18 +63,18 @@ resource "aws_security_group" "aurora" {
 }
 
 resource "aws_rds_cluster" "main" {
-  cluster_identifier      = "${var.environment}-${var.cluster_identifier}"
-  engine                  = "aurora-mysql"
-  engine_mode             = "provisioned"
-  engine_version          = "8.0.mysql_aurora.3.04.0"
-  database_name           = var.database_name
-  master_username         = var.master_username
-  master_password         = local.master_password
-  db_subnet_group_name    = aws_db_subnet_group.main.name
-  vpc_security_group_ids  = [aws_security_group.aurora.id]
-  skip_final_snapshot     = true
-  storage_encrypted       = true
-  
+  cluster_identifier     = "${var.environment}-${var.cluster_identifier}"
+  engine                 = "aurora-mysql"
+  engine_mode            = "provisioned"
+  engine_version         = "8.0.mysql_aurora.3.04.0"
+  database_name          = var.database_name
+  master_username        = var.master_username
+  master_password        = local.master_password
+  db_subnet_group_name   = aws_db_subnet_group.main.name
+  vpc_security_group_ids = [aws_security_group.aurora.id]
+  skip_final_snapshot    = true
+  storage_encrypted      = true
+
   serverlessv2_scaling_configuration {
     min_capacity = var.min_capacity
     max_capacity = var.max_capacity
@@ -96,7 +96,7 @@ resource "aws_rds_cluster_instance" "main" {
   instance_class     = "db.serverless"
   engine             = aws_rds_cluster.main.engine
   engine_version     = aws_rds_cluster.main.engine_version
-  
+
   tags = merge(
     {
       Name        = "${var.environment}-aurora-instance-${count.index}"
@@ -110,7 +110,7 @@ resource "aws_rds_cluster_instance" "main" {
 resource "aws_secretsmanager_secret" "aurora_credentials" {
   count = var.master_password == null ? 1 : 0
   name  = "${var.environment}/aurora/${var.cluster_identifier}/creds"
-  
+
   tags = merge(
     {
       Name        = "${var.environment}-aurora-creds"
