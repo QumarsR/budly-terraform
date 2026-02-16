@@ -28,3 +28,9 @@ variable "db_host" {
   description = "Hostname or IP address of the database server"
   type        = string
 }
+
+variable "qdrant_instance_type" {
+  description = "Instance size/type of Qdrant DB ec2 instance"
+  type        = string
+}
+

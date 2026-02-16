@@ -5,3 +5,4 @@ public_subnet_cidrs  = ["172.31.16.0/20", "172.31.32.0/20"]
 private_subnet_cidrs = ["172.31.48.0/20", "172.31.64.0/20"]
 availability_zones   = ["us-west-1a", "us-west-1c"]
 db_host              = "test_db_host"
+qdrant_instance_type = "t3.small"
